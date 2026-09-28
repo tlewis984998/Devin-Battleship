@@ -3,6 +3,17 @@
 Notable changes, newest first. Bug-fix entries describe the root cause, the fix, and
 how it was verified so future readers can judge whether a regression is plausible.
 
+## 2026-09-28 — SuperShot (`feat/supershot`)
+
+- New once-per-game weapon: `superShot {row,col}` fires a plus pattern — centre plus
+  the four orthogonal neighbours, off-board cells ignored.
+- Already-fired pattern cells are skipped; rejected with `no new cells to hit` if none
+  are fresh, and `SuperShot already used` on a second attempt. Otherwise it ends the
+  turn like `fire` and can end the game; resets on rematch; the bot gets one too.
+- Server shares `shotPrecheck`/`endShot` between `fire` and `superShot`; the bot
+  spends its shot centred on a lone hit. Client: arm with the button or `S`, hover to
+  preview the pattern, click to fire.
+
 ## 2026-09-28 — Known-issues cleanup (`fix/known-issues-cleanup`)
 
 - `cors: { origin: true }` reflected any origin → allow-list from `CORS_ORIGIN`,

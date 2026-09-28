@@ -68,6 +68,8 @@ async function main() {
   console.log('both players placed ships');
 
   const deadline = Date.now() + TIMEOUT_MS;
+  const superShotUsed = [false, false];
+  const superShotVerified = [false, false];
   let shots = 0;
   while (Date.now() < deadline) {
     const va = views.a;
@@ -90,6 +92,7 @@ async function main() {
     }
     const me = va?.yourTurn ? a : vb?.yourTurn ? b : null;
     const myView = va?.yourTurn ? va : vb;
+    const meIndex = va?.yourTurn ? 0 : 1;
     if (me && myView) {
       // pick a random unexplored cell on the opponent board
       const options: { row: number; col: number }[] = [];
@@ -99,9 +102,25 @@ async function main() {
         }),
       );
       const target = options[Math.floor(Math.random() * options.length)];
-      const res = await emit<{ ok: boolean; error?: string }>(me, 'fire', target);
-      assert(res.ok, `fire ${JSON.stringify(target)}: ${res.error}`);
-      shots++;
+      if (!superShotUsed[meIndex]) {
+        // first turn for this client: spend the SuperShot
+        const res = await emit<{ ok: boolean; error?: string }>(me, 'superShot', target);
+        assert(res.ok, `superShot ${JSON.stringify(target)}: ${res.error}`);
+        superShotUsed[meIndex] = true;
+        shots++;
+      } else {
+        if (!superShotVerified[meIndex]) {
+          const res2 = await emit<{ ok: boolean; error?: string }>(me, 'superShot', target);
+          assert(
+            res2.ok === false && res2.error === 'SuperShot already used',
+            `second superShot should fail, got ${JSON.stringify(res2)}`,
+          );
+          superShotVerified[meIndex] = true;
+        }
+        const res = await emit<{ ok: boolean; error?: string }>(me, 'fire', target);
+        assert(res.ok, `fire ${JSON.stringify(target)}: ${res.error}`);
+        shots++;
+      }
     } else {
       await new Promise((r) => setTimeout(r, 20));
     }

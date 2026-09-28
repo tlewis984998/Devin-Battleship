@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RoomView, SHIPS } from '@battleship/shared';
+import { useEffect, useState } from 'react';
+import { Coord, RoomView, SHIPS, plusCells } from '@battleship/shared';
 import { socket } from '../socket';
 import BoardGrid from '../components/BoardGrid';
 
@@ -28,13 +28,58 @@ export default function Battle({ view }: { view: RoomView }) {
   const voted = view.rematchRequestedBy.includes(view.playerIndex);
   const opponentVoted = view.rematchRequestedBy.some((i) => i !== view.playerIndex);
   const opponent = view.opponentIsAi ? 'Computer' : 'Opponent';
+  const [armed, setArmed] = useState(false);
+  const [hover, setHover] = useState<Coord | null>(null);
 
-  const fire = (row: number, col: number) => {
-    if (!canFire || view.opponentBoard[row][col] !== 'water') return;
+  useEffect(() => {
+    if (!canFire || !view.superShotAvailable) setArmed(false);
+  }, [canFire, view.superShotAvailable]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === 's' || e.key === 'S') && view.superShotAvailable && canFire) {
+        setArmed((a) => !a);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view.superShotAvailable, canFire]);
+
+  const onCell = (row: number, col: number) => {
+    if (!canFire) return;
+    if (armed) {
+      const pattern = plusCells({ row, col });
+      if (!pattern.some((c) => view.opponentBoard[c.row][c.col] === 'water')) return;
+      setError(null);
+      socket.emit('superShot', { row, col }, (res) => {
+        if (!res.ok) setError(res.error);
+        setArmed(false);
+      });
+      return;
+    }
+    if (view.opponentBoard[row][col] !== 'water') return;
     setError(null);
     socket.emit('fire', { row, col }, (res) => {
       if (!res.ok) setError(res.error);
     });
+  };
+
+  const enemyCellClass = (r: number, c: number) => {
+    let cls = `sea ${view.opponentBoard[r][c]}${
+      canFire && view.opponentBoard[r][c] === 'water' ? ' target' : ''
+    }`;
+    if (armed && hover) {
+      const pattern = plusCells(hover);
+      const anyWater = pattern.some((p) => view.opponentBoard[p.row][p.col] === 'water');
+      if (pattern.some((p) => p.row === r && p.col === c)) {
+        cls += anyWater
+          ? view.opponentBoard[r][c] === 'water'
+            ? ' preview-ok'
+            : ''
+          : ' preview-bad';
+      }
+    }
+    return cls;
   };
 
   return (
@@ -67,14 +112,30 @@ export default function Battle({ view }: { view: RoomView }) {
         </section>
         <section>
           <h3>Enemy waters</h3>
+          <div className="supershot">
+            <button
+              className={`seg${armed ? ' active' : ''}`}
+              disabled={!view.superShotAvailable || !canFire}
+              onClick={() => setArmed((a) => !a)}
+            >
+              {view.superShotAvailable
+                ? armed
+                  ? 'SuperShot armed — pick a target'
+                  : 'SuperShot: Ready (S)'
+                : 'SuperShot: Used'}
+            </button>
+            <span className="muted small">
+              {opponent} SuperShot: {view.opponentSuperShotAvailable ? 'ready' : 'used'}
+            </span>
+          </div>
           <BoardGrid
-            cellClass={(r, c) =>
-              `sea ${view.opponentBoard[r][c]}${
-                canFire && view.opponentBoard[r][c] === 'water' ? ' target' : ''
-              }`
-            }
+            cellClass={enemyCellClass}
             content={(r, c) => glyph(view.opponentBoard[r][c])}
-            onCellClick={fire}
+            onCellClick={onCell}
+            onCellHover={(r, c) => {
+              if (armed) setHover({ row: r, col: c });
+            }}
+            onHoverEnd={() => setHover(null)}
           />
           <Fleet sunk={view.sunkByYou} />
         </section>

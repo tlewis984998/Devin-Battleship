@@ -84,6 +84,8 @@ createRoom
   (`touch`). On expiry `destroy` removes the room and its tokens.
 - **Rematch:** both seats must vote; a bot votes automatically. Restart clears boards,
   returns to `placing`, and re-rolls the bot's fleet.
+- `superShot` (once per player per game, plus-shaped pattern) shares `shotPrecheck`
+  and `endShot` with `fire`.
 - **AI hooks:** `botShouldAct(room)` and `botFire(room)` are exported so `index.ts`
   can schedule the bot's move with a delay without `rooms.ts` touching sockets.
 

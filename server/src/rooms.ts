@@ -7,6 +7,7 @@ import {
   RoomView,
   SHIPS,
   ShipPlacement,
+  plusCells,
   randomPlacements,
 } from '@battleship/shared';
 import {
@@ -41,6 +42,7 @@ export class Room {
   turn: 0 | 1 = 0;
   winner: 0 | 1 | null = null;
   rematchVotes = new Set<number>();
+  superShotUsed: [boolean, boolean] = [false, false];
   cleanupTimer: NodeJS.Timeout | null = null;
   ai: AiState | null = null;
   botTimer: NodeJS.Timeout | null = null;
@@ -68,6 +70,8 @@ export class Room {
       yourBoard: mine ? ownView(mine) : emptyView(),
       opponentBoard: foe ? foeView(foe, finished) : emptyView(),
       yourTurn: this.phase === 'battle' && this.turn === index,
+      superShotAvailable: !this.superShotUsed[index],
+      opponentSuperShotAvailable: !this.superShotUsed[1 - index],
       winner: this.winner === null ? null : this.winner === index ? 'you' : 'opponent',
       sunkByYou: foe ? sunkNames(foe) : [],
       sunkByOpponent: mine ? sunkNames(mine) : [],
@@ -183,13 +187,9 @@ export function placeShips(
   return null;
 }
 
-export function fire(
-  room: Room,
-  index: 0 | 1,
-  c: Coord,
-): { result: FireResult } | { error: string } {
-  if (room.phase !== 'battle') return { error: 'not in battle phase' };
-  if (room.turn !== index) return { error: 'not your turn' };
+function shotPrecheck(room: Room, index: 0 | 1, c: Coord): string | null {
+  if (room.phase !== 'battle') return 'not in battle phase';
+  if (room.turn !== index) return 'not your turn';
   if (
     !Number.isInteger(c.row) ||
     !Number.isInteger(c.col) ||
@@ -198,19 +198,56 @@ export function fire(
     c.col < 0 ||
     c.col >= BOARD_SIZE
   ) {
-    return { error: 'target out of bounds' };
+    return 'target out of bounds';
   }
-  const foe = room.boards[1 - index];
-  if (!foe) return { error: 'opponent board not ready' };
-  const result = fireAt(foe, c);
-  if (result.kind === 'repeat') return { error: 'cell already fired on' };
+  return null;
+}
+
+/** Classic rules: every shot ends the turn unless it sinks the last ship. */
+function endShot(room: Room, index: 0 | 1, foe: Board): void {
   if (allSunk(foe)) {
     room.phase = 'finished';
     room.winner = index;
   } else {
-    room.turn = (1 - index) as 0 | 1; // classic rules: every shot ends the turn
+    room.turn = (1 - index) as 0 | 1;
   }
+}
+
+export function fire(
+  room: Room,
+  index: 0 | 1,
+  c: Coord,
+): { result: FireResult } | { error: string } {
+  const precheck = shotPrecheck(room, index, c);
+  if (precheck) return { error: precheck };
+  const foe = room.boards[1 - index];
+  if (!foe) return { error: 'opponent board not ready' };
+  const result = fireAt(foe, c);
+  if (result.kind === 'repeat') return { error: 'cell already fired on' };
+  endShot(room, index, foe);
   return { result };
+}
+
+/** One-per-game volley on the centre and its orthogonal neighbours. */
+export function superShot(
+  room: Room,
+  index: 0 | 1,
+  c: Coord,
+): { results: { coord: Coord; result: FireResult }[] } | { error: string } {
+  const precheck = shotPrecheck(room, index, c);
+  if (precheck) return { error: precheck };
+  if (room.superShotUsed[index]) return { error: 'SuperShot already used' };
+  const foe = room.boards[1 - index];
+  if (!foe) return { error: 'opponent board not ready' };
+  const results: { coord: Coord; result: FireResult }[] = [];
+  for (const cell of plusCells(c)) {
+    const result = fireAt(foe, cell);
+    if (result.kind !== 'repeat') results.push({ coord: cell, result });
+  }
+  if (results.length === 0) return { error: 'no new cells to hit' };
+  room.superShotUsed[index] = true;
+  endShot(room, index, foe);
+  return { results };
 }
 
 /** Frees a seat. Destroys the room if it was never joined, has a bot, or is now empty. */
@@ -245,6 +282,7 @@ export function rematch(room: Room, index: 0 | 1): string | null {
     room.phase = 'placing';
     room.winner = null;
     room.rematchVotes.clear();
+    room.superShotUsed = [false, false];
     if (room.ai) room.ai = createAiState();
     if (bot) room.boards[bot.index] = botBoard();
   }
@@ -257,6 +295,14 @@ export function botShouldAct(room: Room): boolean {
 
 export function botFire(room: Room): void {
   if (!room.ai || !room.boards[0]) return;
+  if (room.ai.hits.length === 1 && !room.superShotUsed[1]) {
+    const res = superShot(room, 1, room.ai.hits[0]);
+    if (!('error' in res)) {
+      const post = foeView(room.boards[0]);
+      for (const { coord, result } of res.results) recordResult(room.ai, coord, result, post);
+      return;
+    }
+  }
   const view = foeView(room.boards[0]);
   const c = chooseShot(view, room.ai);
   const res = fire(room, 1, c);

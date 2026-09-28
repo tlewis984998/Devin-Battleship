@@ -20,6 +20,7 @@ Every event takes a payload and an acknowledgement callback. Acks are one of:
 | `resume` | `{ token }` | `{ view }` | `session not found` |
 | `placeShips` | `{ ships: ShipPlacement[] }` | `{}` | `not in placement phase`, `ships already placed`, validation messages |
 | `fire` | `{ row, col }` | `{}` | `not in battle phase`, `not your turn`, `target out of bounds`, `cell already fired on` |
+| `superShot` | `{ row, col }` (pattern centre) | `{}` | `fire`'s errors plus `SuperShot already used`, `no new cells to hit` |
 | `rematch` | — | `{}` | `game not finished`, `opponent left` |
 | `leaveRoom` | — | `{}` | — |
 
@@ -52,12 +53,24 @@ truth and re-render from it.
   yourBoard: CellView[][];        // 10x10: water | ship | hit | miss | sunk
   opponentBoard: CellView[][];    // intact enemy ships appear as 'water' until finished
   yourTurn: boolean;              // false outside 'battle'
+  superShotAvailable: boolean;    // you haven't used your one SuperShot
+  opponentSuperShotAvailable: boolean;
   winner: 'you' | 'opponent' | null;
   sunkByYou: string[];            // enemy ship names you have sunk
   sunkByOpponent: string[];       // your ship names that are sunk
   rematchRequestedBy: number[];   // seat indices
 }
 ```
+
+## SuperShot
+
+Each player gets one SuperShot per game (the bot too; it resets on rematch). It fires
+on the centre cell plus its four orthogonal neighbours, ignoring off-board cells.
+Already-fired cells in the pattern are skipped — the centre itself may be a fired cell.
+The shot is rejected with `no new cells to hit` if every pattern cell was already
+fired on (the SuperShot is not consumed then), and with `SuperShot already used` on a
+second attempt. Otherwise it behaves exactly like `fire`: it ends the turn, and sinking
+the last ship ends the game.
 
 ## Ordering guarantee
 

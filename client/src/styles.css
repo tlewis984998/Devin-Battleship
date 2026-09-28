@@ -325,3 +325,18 @@ input:focus {
   background: #1e3a5f;
   color: #d7e3f1;
 }
+
+.supershot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin: 6px 0 10px;
+}
+.supershot .seg {
+  border: 1px solid #2c4560;
+  border-radius: 8px;
+}
+.small {
+  font-size: 12px;
+}

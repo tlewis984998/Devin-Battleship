@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_SIZE, SHIPS, ShipPlacement } from '@battleship/shared';
+import { BOARD_SIZE, SHIPS, ShipPlacement, plusCells } from '@battleship/shared';
 import {
   allSunk,
   createBoard,
@@ -70,6 +70,23 @@ describe('firing', () => {
     }
     expect(allSunk(board)).toBe(true);
     expect(sunkNames(board)).toHaveLength(SHIPS.length);
+  });
+});
+
+describe('plusCells', () => {
+  it('returns the centre then in-bounds neighbours', () => {
+    expect(plusCells({ row: 5, col: 5 })).toEqual([
+      { row: 5, col: 5 },
+      { row: 4, col: 5 },
+      { row: 6, col: 5 },
+      { row: 5, col: 4 },
+      { row: 5, col: 6 },
+    ]);
+    expect(plusCells({ row: 0, col: 0 })).toEqual([
+      { row: 0, col: 0 },
+      { row: 1, col: 0 },
+      { row: 0, col: 1 },
+    ]);
   });
 });
 
