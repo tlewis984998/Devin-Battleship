@@ -18,6 +18,23 @@ export interface Coord {
   col: number;
 }
 
+/** Centre plus in-bounds orthogonal neighbours, centre first (SuperShot pattern). */
+export function plusCells(c: Coord): Coord[] {
+  const cells: Coord[] = [c];
+  for (const d of [
+    { row: -1, col: 0 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+    { row: 0, col: 1 },
+  ]) {
+    const cell = { row: c.row + d.row, col: c.col + d.col };
+    if (cell.row >= 0 && cell.row < BOARD_SIZE && cell.col >= 0 && cell.col < BOARD_SIZE) {
+      cells.push(cell);
+    }
+  }
+  return cells;
+}
+
 export type Orientation = 'h' | 'v';
 
 export interface ShipPlacement {
@@ -87,6 +104,8 @@ export interface RoomView {
   yourBoard: CellView[][];
   opponentBoard: CellView[][];
   yourTurn: boolean;
+  superShotAvailable: boolean;
+  opponentSuperShotAvailable: boolean;
   winner: 'you' | 'opponent' | null;
   /** Enemy ship names you have sunk. */
   sunkByYou: string[];
@@ -106,6 +125,7 @@ export interface ClientToServer {
   resume: (p: { token: string }, cb: (r: ResumeResult) => void) => void;
   placeShips: (p: { ships: ShipPlacement[] }, cb: (r: SimpleResult) => void) => void;
   fire: (p: Coord, cb: (r: SimpleResult) => void) => void;
+  superShot: (p: Coord, cb: (r: SimpleResult) => void) => void;
   rematch: (cb: (r: SimpleResult) => void) => void;
   leaveRoom: (cb: (r: SimpleResult) => void) => void;
 }

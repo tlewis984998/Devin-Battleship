@@ -32,6 +32,10 @@ that do not yet belong to a sunk ship.
    each parity; searching one colour of the checkerboard halves the hunt.
 4. Fallback to any unfired cell (only reachable if the parity set is exhausted).
 
+The bot also spends its one SuperShot when it has exactly one remembered hit (a lone
+hit with unknown orientation): it centres the pattern on that cell to find the ship's
+axis in a single turn.
+
 `recordResult` maintains `state.hits`: push on `hit`; on `sunk`, drop every remembered
 hit whose cell is now `sunk` in the post-shot view. Hits on a *different* ship that
 happened to be adjacent are kept, so the bot returns to them.

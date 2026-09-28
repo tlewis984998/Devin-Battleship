@@ -168,6 +168,21 @@ io.on('connection', (socket: AppSocket) => {
   );
 
   socket.on(
+    'superShot',
+    safe((coord, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isCoord(coord)) return cb(invalid);
+      const ctx = context(socket);
+      if (!ctx) return cb({ ok: false, error: 'not in a room' });
+      const res = rooms.superShot(ctx.room, ctx.index, coord);
+      if ('error' in res) return cb({ ok: false, error: res.error });
+      pushState(ctx.room);
+      cb({ ok: true });
+      scheduleBot(ctx.room);
+    }),
+  );
+
+  socket.on(
     'rematch',
     safe((cb) => {
       if (typeof cb !== 'function') return;
