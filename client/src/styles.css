@@ -1,0 +1,306 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #0b1420;
+  color: #d7e3f1;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid #1c2c40;
+}
+
+header h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #7fb4ff;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 48px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: #1a2c42;
+  border: 1px solid #2c4560;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled):not(.cell) {
+  background: #223a57;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: #2563eb;
+  border-color: #3b82f6;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #2f6fed;
+}
+
+button.block {
+  width: 100%;
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #8aa2bf;
+}
+
+input {
+  font: inherit;
+  background: #0f1d2e;
+  color: inherit;
+  border: 1px solid #2c4560;
+  border-radius: 8px;
+  padding: 9px 12px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  width: 130px;
+  text-align: center;
+}
+
+input:focus {
+  outline: 2px solid #2563eb;
+}
+
+.panel {
+  background: #101d2d;
+  border: 1px solid #1e3049;
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+}
+
+.home {
+  margin-top: 6vh;
+}
+
+.muted {
+  color: #7d92ab;
+}
+
+.error {
+  color: #ff8a8a;
+}
+
+.warn {
+  color: #f0b429;
+}
+
+.win {
+  color: #4ade80;
+}
+
+.lose {
+  color: #ff8a8a;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #5f7694;
+  margin: 22px 0;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid #22344c;
+}
+
+.join-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.code {
+  font-size: 44px;
+  letter-spacing: 10px;
+  font-weight: 700;
+  color: #7fb4ff;
+  margin: 8px 0;
+}
+
+.pulse {
+  animation: pulse 1.6s ease-in-out infinite;
+  color: #7fb4ff;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 3px;
+  width: min(92vw, 400px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.boards .board {
+  width: min(42vw, 340px);
+}
+
+.cell {
+  border: 1px solid #16283c;
+  border-radius: 3px;
+  padding: 0;
+  background: #122741;
+  color: #d7e3f1;
+  font-size: clamp(10px, 2vw, 18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: default;
+}
+
+.cell.ship {
+  background: #4c637d;
+}
+
+.cell.hit {
+  background: #b33939;
+  color: #ffd9d9;
+  font-weight: 700;
+}
+
+.cell.sunk {
+  background: #6e1d1d;
+  color: #ffb3b3;
+  font-weight: 700;
+}
+
+.cell.miss {
+  color: #6d87a5;
+}
+
+.cell.preview-ok {
+  background: #2f7d53;
+}
+
+.cell.preview-bad {
+  background: #8a3030;
+}
+
+.cell.target:hover {
+  outline: 2px solid #4da3ff;
+  cursor: crosshair;
+}
+
+.fleet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.fleet span {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: #16283c;
+  color: #8aa2bf;
+}
+
+.fleet span.placed {
+  background: #1f4d33;
+  color: #7ce0a8;
+}
+
+.fleet span.sunk {
+  background: #57201f;
+  color: #ff9c9c;
+  text-decoration: line-through;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.placement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statusbar {
+  text-align: center;
+  min-height: 70px;
+}
+
+.statusbar h2 {
+  margin: 8px 0;
+  font-weight: 600;
+}
+
+.boards {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.boards section h3 {
+  text-align: center;
+  color: #7d92ab;
+  font-weight: 500;
+}
+
+.rematch {
+  margin-top: 28px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+}
