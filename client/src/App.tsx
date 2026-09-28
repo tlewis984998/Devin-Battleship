@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RoomView } from '@battleship/shared';
 import { socket, TOKEN_KEY } from './socket';
 import Home from './screens/Home';
@@ -18,7 +18,10 @@ export default function App() {
     };
   }, []);
 
+  const resumeAttempted = useRef(false);
   useEffect(() => {
+    if (resumeAttempted.current) return;
+    resumeAttempted.current = true;
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return;
     socket.timeout(5000).emit('resume', { token }, (err, r) => {

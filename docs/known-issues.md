@@ -3,25 +3,27 @@
 Findings from a code review and live probing on 2026-09-27. Status is tracked here
 until fixed; remove entries as they are resolved.
 
-## Medium
+## Design limitations
 
 ### 1. In-memory state
 **By design (MVP).** A server restart drops all rooms; every client's stored token is
 then invalid and they are returned to Home. A Redis-backed room store would be the
 next step for real deployment.
 
-## Low / hardening
-
-- **2.** `cors: { origin: true }` reflects any origin. Production is same-origin, so
-  this should be restricted or removed there.
-- **3.** A room's creator can join their own room as player 2 from a second tab.
-- **4.** React StrictMode double-invokes the `resume` effect in dev; harmless (same
-  seat re-attached) but noisy.
-
 ## Fixed
 
-Resolved on 2026-09-28 — full root-cause / fix / verification write-up in
-[`changelog.md`](changelog.md):
+Full root-cause / fix / verification write-ups live in [`changelog.md`](changelog.md).
+
+Resolved on 2026-09-28 (PR: fix/known-issues-cleanup):
+
+- Socket.IO CORS is now an allow-list (`CORS_ORIGIN`, comma-separated) defaulting to
+  the Vite dev origins instead of reflecting any origin.
+- A player can no longer join their own room as player 2 — `joinRoom` rejects with
+  `you are already in this room` when the socket is already seated there.
+- React StrictMode double-invocation no longer fires `resume` twice — the effect is
+  guarded by a ref so it runs once.
+
+Resolved on 2026-09-28 (`37966b1`):
 
 - Malformed socket payloads no longer crash the server — every handler validates its
   payload (`validate.ts`) and is wrapped by `safe()`, which acks `{ok:false}` on a

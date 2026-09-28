@@ -51,6 +51,10 @@ PORT=3001 npm start
 
 The server serves the built client and the Socket.IO endpoint from one port.
 
+If the client is served from a different origin, set `CORS_ORIGIN` to that origin
+(comma-separated for several). By default only the Vite dev origins
+(`http://localhost:5173`, `http://127.0.0.1:5173`) are allowed.
+
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — how the pieces fit, state machine, data flow
