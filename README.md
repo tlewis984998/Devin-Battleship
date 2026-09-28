@@ -51,6 +51,14 @@ PORT=3001 npm start
 
 The server serves the built client and the Socket.IO endpoint from one port.
 
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — how the pieces fit, state machine, data flow
+- [`docs/protocol.md`](docs/protocol.md) — socket events and the `RoomView` contract
+- [`docs/ai-opponent.md`](docs/ai-opponent.md) — how the computer player works
+- [`docs/known-issues.md`](docs/known-issues.md) — open bugs and hardening backlog
+- [`AGENTS.md`](AGENTS.md) — setup quirks, verification commands, and conventions for contributors and coding agents
+
 ## Project layout
 
 ```
