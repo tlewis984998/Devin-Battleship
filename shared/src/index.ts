@@ -81,6 +81,7 @@ export interface RoomView {
   playerIndex: 0 | 1;
   opponentConnected: boolean;
   opponentIsAi: boolean;
+  opponentLeft: boolean;
   youPlaced: boolean;
   opponentPlaced: boolean;
   yourBoard: CellView[][];
@@ -106,6 +107,7 @@ export interface ClientToServer {
   placeShips: (p: { ships: ShipPlacement[] }, cb: (r: SimpleResult) => void) => void;
   fire: (p: Coord, cb: (r: SimpleResult) => void) => void;
   rematch: (cb: (r: SimpleResult) => void) => void;
+  leaveRoom: (cb: (r: SimpleResult) => void) => void;
 }
 
 export interface ServerToClient {

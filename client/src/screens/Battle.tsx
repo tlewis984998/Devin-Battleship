@@ -40,7 +40,9 @@ export default function Battle({ view }: { view: RoomView }) {
   return (
     <div className="battle">
       <div className="statusbar">
-        {finished ? (
+        {view.opponentLeft ? (
+          <h2 className="warn">Opponent left the game.</h2>
+        ) : finished ? (
           <h2 className={view.winner === 'you' ? 'win' : 'lose'}>
             {view.winner === 'you' ? 'Victory — enemy fleet destroyed!' : 'Defeat — your fleet was sunk.'}
           </h2>
@@ -49,7 +51,7 @@ export default function Battle({ view }: { view: RoomView }) {
             {view.yourTurn ? 'Your turn — fire!' : `${opponent}'s turn…`}
           </h2>
         )}
-        {!view.opponentConnected && !view.opponentIsAi && (
+        {!view.opponentConnected && !view.opponentIsAi && !view.opponentLeft && (
           <span className="warn">Opponent disconnected — they can rejoin anytime.</span>
         )}
       </div>
@@ -78,18 +80,25 @@ export default function Battle({ view }: { view: RoomView }) {
         </section>
       </div>
 
-      {finished && (
-        <div className="rematch">
-          <button
-            className="primary"
-            disabled={voted}
-            onClick={() => socket.emit('rematch', () => {})}
-          >
-            {voted ? 'Rematch requested…' : 'Rematch'}
-          </button>
-          {opponentVoted && !voted && <span className="muted">{opponent} wants a rematch.</span>}
-        </div>
-      )}
+      {finished &&
+        (view.opponentLeft ? (
+          <p className="muted">Start a new game from the home screen.</p>
+        ) : (
+          <div className="rematch">
+            <button
+              className="primary"
+              disabled={voted}
+              onClick={() =>
+                socket.emit('rematch', (r) => {
+                  if (!r.ok) setError(r.error);
+                })
+              }
+            >
+              {voted ? 'Rematch requested…' : 'Rematch'}
+            </button>
+            {opponentVoted && !voted && <span className="muted">{opponent} wants a rematch.</span>}
+          </div>
+        ))}
       {error && <p className="error">{error}</p>}
     </div>
   );

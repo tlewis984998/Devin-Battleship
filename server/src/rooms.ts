@@ -62,6 +62,7 @@ export class Room {
       playerIndex: index,
       opponentConnected: Boolean(opponent && (opponent.socketId || opponent.isBot)),
       opponentIsAi: Boolean(opponent?.isBot),
+      opponentLeft: this.phase !== 'waiting' && !opponent,
       youPlaced: mine !== null,
       opponentPlaced: foe !== null,
       yourBoard: mine ? ownView(mine) : emptyView(),
@@ -146,9 +147,10 @@ export function touch(room: Room): void {
   }
 }
 
-export function markDisconnected(room: Room, index: number): void {
+export function markDisconnected(room: Room, index: number, socketId: string): void {
   const player = room.player(index);
-  if (player) player.socketId = null;
+  if (!player || player.socketId !== socketId) return;
+  player.socketId = null;
   if (room.players.filter((p) => !p.isBot).every((p) => p.socketId === null)) {
     touch(room);
     room.cleanupTimer = setTimeout(() => destroy(room.code), EMPTY_ROOM_TTL_MS);
@@ -158,6 +160,7 @@ export function markDisconnected(room: Room, index: number): void {
 function destroy(code: string): void {
   const room = rooms.get(code);
   if (!room) return;
+  if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
   if (room.botTimer) clearTimeout(room.botTimer);
   for (const p of room.players) tokens.delete(p.token);
   rooms.delete(code);
@@ -187,7 +190,14 @@ export function fire(
 ): { result: FireResult } | { error: string } {
   if (room.phase !== 'battle') return { error: 'not in battle phase' };
   if (room.turn !== index) return { error: 'not your turn' };
-  if (c.row < 0 || c.row >= BOARD_SIZE || c.col < 0 || c.col >= BOARD_SIZE) {
+  if (
+    !Number.isInteger(c.row) ||
+    !Number.isInteger(c.col) ||
+    c.row < 0 ||
+    c.row >= BOARD_SIZE ||
+    c.col < 0 ||
+    c.col >= BOARD_SIZE
+  ) {
     return { error: 'target out of bounds' };
   }
   const foe = room.boards[1 - index];
@@ -203,7 +213,29 @@ export function fire(
   return { result };
 }
 
+/** Frees a seat. Destroys the room if it was never joined, has a bot, or is now empty. */
+export function leaveRoom(room: Room, index: 0 | 1): void {
+  const player = room.player(index);
+  if (!player) return;
+  room.players = room.players.filter((p) => p !== player);
+  tokens.delete(player.token);
+  if (
+    room.phase === 'waiting' ||
+    room.players.some((p) => p.isBot) ||
+    !room.players.some((p) => !p.isBot)
+  ) {
+    destroy(room.code);
+    return;
+  }
+  if (room.phase === 'placing' || room.phase === 'battle') {
+    room.phase = 'finished';
+    room.winner = (1 - index) as 0 | 1;
+  }
+  room.rematchVotes.clear();
+}
+
 export function rematch(room: Room, index: 0 | 1): string | null {
+  if (!room.player(1 - index)) return 'opponent left';
   if (room.phase !== 'finished') return 'game not finished';
   room.rematchVotes.add(index);
   const bot = room.players.find((p) => p.isBot);

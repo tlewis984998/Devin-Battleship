@@ -9,6 +9,7 @@ import Battle from './screens/Battle';
 export default function App() {
   const [view, setView] = useState<RoomView | null>(null);
   const [resuming, setResuming] = useState(() => Boolean(localStorage.getItem(TOKEN_KEY)));
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     socket.on('state', setView);
@@ -20,29 +21,35 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return;
-    socket.emit('resume', { token }, (r) => {
+    socket.timeout(5000).emit('resume', { token }, (err, r) => {
       setResuming(false);
+      if (err) {
+        setNotice('Could not reach the server. Please try again.');
+        return;
+      }
       if (r.ok) setView(r.view);
       else localStorage.removeItem(TOKEN_KEY);
     });
   }, []);
 
   const leave = () => {
+    socket.emit('leaveRoom', () => {});
     localStorage.removeItem(TOKEN_KEY);
     setView(null);
-    socket.disconnect();
-    socket.connect();
   };
 
   const content = resuming ? (
     <p className="muted">Reconnecting…</p>
   ) : !view ? (
-    <Home
-      onJoined={(token, v) => {
-        localStorage.setItem(TOKEN_KEY, token);
-        setView(v);
-      }}
-    />
+    <>
+      {notice && <p className="error">{notice}</p>}
+      <Home
+        onJoined={(token, v) => {
+          localStorage.setItem(TOKEN_KEY, token);
+          setView(v);
+        }}
+      />
+    </>
   ) : view.phase === 'waiting' ? (
     <Lobby view={view} />
   ) : view.phase === 'placing' ? (

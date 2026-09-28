@@ -15,8 +15,9 @@ export default function Home({ onJoined }: HomeProps) {
   const create = () => {
     setBusy(true);
     setError(null);
-    socket.emit('createRoom', { mode }, (r) => {
+    socket.timeout(5000).emit('createRoom', { mode }, (err, r) => {
       setBusy(false);
+      if (err) return setError('Could not reach the server. Please try again.');
       if (r.ok) onJoined(r.token, r.view);
       else setError(r.error);
     });
@@ -26,8 +27,9 @@ export default function Home({ onJoined }: HomeProps) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    socket.emit('joinRoom', { roomCode: code }, (r) => {
+    socket.timeout(5000).emit('joinRoom', { roomCode: code }, (err, r) => {
       setBusy(false);
+      if (err) return setError('Could not reach the server. Please try again.');
       if (r.ok) onJoined(r.token, r.view);
       else setError(r.error);
     });

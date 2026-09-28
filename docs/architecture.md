@@ -91,6 +91,12 @@ createRoom
 
 - One handler per `ClientToServer` event. Each resolves the calling socket's seat via
   `socket.data` (`context()`), delegates to `rooms.ts`, acks, and `pushState`s.
+- Every handler is wrapped in `safe()` (a throw acks `{ok:false}` instead of
+  propagating) and validates its payload with the type guards in `validate.ts`;
+  `uncaughtException`/`unhandledRejection` are logged rather than fatal.
+- `leaveRoom` frees the seat: a `waiting` room, an AI room, or an emptied room is
+  destroyed outright; otherwise the game ends with the leaver's opponent as winner
+  and `opponentLeft` set on their `RoomView`.
 - `scheduleBot(room)` fires the bot's shot 700 ms after it becomes the bot's turn; it is
   called after every state-changing handler so the bot always gets its move even after
   a human reconnects.

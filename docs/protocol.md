@@ -20,7 +20,10 @@ Every event takes a payload and an acknowledgement callback. Acks are one of:
 | `resume` | `{ token }` | `{ view }` | `session not found` |
 | `placeShips` | `{ ships: ShipPlacement[] }` | `{}` | `not in placement phase`, `ships already placed`, validation messages |
 | `fire` | `{ row, col }` | `{}` | `not in battle phase`, `not your turn`, `target out of bounds`, `cell already fired on` |
-| `rematch` | — | `{}` | `game not finished` |
+| `rematch` | — | `{}` | `game not finished`, `opponent left` |
+| `leaveRoom` | — | `{}` | — |
+
+Payloads are validated server-side; malformed input acks `{ok:false, error:'invalid request'}`.
 
 `token` must be persisted by the client (`localStorage['battleship-token']`) and sent
 in `resume` on the next page load to reclaim the seat.
@@ -43,6 +46,7 @@ truth and re-render from it.
   playerIndex: 0 | 1;             // your seat
   opponentConnected: boolean;     // always true for a bot
   opponentIsAi: boolean;
+  opponentLeft: boolean;        // opponent used leaveRoom; the game cannot resume
   youPlaced: boolean;
   opponentPlaced: boolean;
   yourBoard: CellView[][];        // 10x10: water | ship | hit | miss | sunk

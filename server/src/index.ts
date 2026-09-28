@@ -6,6 +6,18 @@ import { Server, Socket } from 'socket.io';
 import { ClientToServer, ServerToClient } from '@battleship/shared';
 import * as rooms from './rooms';
 import { Room } from './rooms';
+import {
+  isCoord,
+  isGameMode,
+  isRecord,
+  isRoomCode,
+  isShipPlacements,
+  isToken,
+} from './validate';
+
+// Last line of defence: one bad packet must not kill every game.
+process.on('uncaughtException', (err) => console.error('uncaught', err));
+process.on('unhandledRejection', (err) => console.error('unhandledRejection', err));
 
 interface SocketData {
   code?: string;
@@ -63,66 +75,128 @@ function context(socket: AppSocket): { room: Room; index: 0 | 1 } | null {
   return { room, index };
 }
 
+/** Wraps a handler so a throw acks {ok:false} instead of propagating. */
+function safe<Args extends unknown[]>(fn: (...args: Args) => void) {
+  return (...args: Args) => {
+    try {
+      fn(...args);
+    } catch (err) {
+      console.error('handler error', err);
+      const cb = args[args.length - 1];
+      if (typeof cb === 'function') cb({ ok: false, error: 'invalid request' });
+    }
+  };
+}
+
+const invalid = { ok: false as const, error: 'invalid request' };
+
 io.on('connection', (socket: AppSocket) => {
-  socket.on('createRoom', ({ mode }, cb) => {
-    const { room, player } = rooms.createRoom(mode === 'ai' ? 'ai' : 'human');
-    attach(socket, room, player);
-    cb({ ok: true, token: player.token, view: room.viewFor(0) });
-  });
+  socket.on(
+    'createRoom',
+    safe((p, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isRecord(p) || !isGameMode(p.mode)) return cb(invalid);
+      const { room, player } = rooms.createRoom(p.mode);
+      attach(socket, room, player);
+      cb({ ok: true, token: player.token, view: room.viewFor(0) });
+    }),
+  );
 
-  socket.on('joinRoom', ({ roomCode }, cb) => {
-    const res = rooms.joinRoom(roomCode.toUpperCase().trim());
-    if ('error' in res) return cb({ ok: false, error: res.error });
-    attach(socket, res.room, res.player);
-    cb({ ok: true, token: res.player.token, view: res.room.viewFor(res.player.index) });
-    pushState(res.room);
-  });
+  socket.on(
+    'joinRoom',
+    safe((p, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isRecord(p) || !isRoomCode(p.roomCode)) return cb(invalid);
+      const res = rooms.joinRoom(p.roomCode.toUpperCase().trim());
+      if ('error' in res) return cb({ ok: false, error: res.error });
+      attach(socket, res.room, res.player);
+      cb({ ok: true, token: res.player.token, view: res.room.viewFor(res.player.index) });
+      pushState(res.room);
+    }),
+  );
 
-  socket.on('resume', ({ token }, cb) => {
-    const res = rooms.resumeSession(token);
-    if (!res) return cb({ ok: false, error: 'session not found' });
-    attach(socket, res.room, res.player);
-    cb({ ok: true, view: res.room.viewFor(res.player.index) });
-    pushState(res.room);
-    scheduleBot(res.room);
-  });
+  socket.on(
+    'resume',
+    safe((p, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isRecord(p) || !isToken(p.token)) return cb(invalid);
+      const res = rooms.resumeSession(p.token);
+      if (!res) return cb({ ok: false, error: 'session not found' });
+      attach(socket, res.room, res.player);
+      cb({ ok: true, view: res.room.viewFor(res.player.index) });
+      pushState(res.room);
+      scheduleBot(res.room);
+    }),
+  );
 
-  socket.on('placeShips', ({ ships }, cb) => {
-    const ctx = context(socket);
-    if (!ctx) return cb({ ok: false, error: 'not in a room' });
-    const error = rooms.placeShips(ctx.room, ctx.index, ships);
-    if (error) return cb({ ok: false, error });
-    cb({ ok: true });
-    pushState(ctx.room);
-    scheduleBot(ctx.room);
-  });
+  socket.on(
+    'placeShips',
+    safe((p, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isRecord(p) || !isShipPlacements(p.ships)) return cb(invalid);
+      const ctx = context(socket);
+      if (!ctx) return cb({ ok: false, error: 'not in a room' });
+      const error = rooms.placeShips(ctx.room, ctx.index, p.ships);
+      if (error) return cb({ ok: false, error });
+      cb({ ok: true });
+      pushState(ctx.room);
+      scheduleBot(ctx.room);
+    }),
+  );
 
-  socket.on('fire', (coord, cb) => {
-    const ctx = context(socket);
-    if (!ctx) return cb({ ok: false, error: 'not in a room' });
-    const res = rooms.fire(ctx.room, ctx.index, coord);
-    if ('error' in res) return cb({ ok: false, error: res.error });
-    pushState(ctx.room);
-    cb({ ok: true });
-    scheduleBot(ctx.room);
-  });
+  socket.on(
+    'fire',
+    safe((coord, cb) => {
+      if (typeof cb !== 'function') return;
+      if (!isCoord(coord)) return cb(invalid);
+      const ctx = context(socket);
+      if (!ctx) return cb({ ok: false, error: 'not in a room' });
+      const res = rooms.fire(ctx.room, ctx.index, coord);
+      if ('error' in res) return cb({ ok: false, error: res.error });
+      pushState(ctx.room);
+      cb({ ok: true });
+      scheduleBot(ctx.room);
+    }),
+  );
 
-  socket.on('rematch', (cb) => {
-    const ctx = context(socket);
-    if (!ctx) return cb({ ok: false, error: 'not in a room' });
-    const error = rooms.rematch(ctx.room, ctx.index);
-    if (error) return cb({ ok: false, error });
-    cb({ ok: true });
-    pushState(ctx.room);
-    scheduleBot(ctx.room);
-  });
+  socket.on(
+    'rematch',
+    safe((cb) => {
+      if (typeof cb !== 'function') return;
+      const ctx = context(socket);
+      if (!ctx) return cb({ ok: false, error: 'not in a room' });
+      const error = rooms.rematch(ctx.room, ctx.index);
+      if (error) return cb({ ok: false, error });
+      cb({ ok: true });
+      pushState(ctx.room);
+      scheduleBot(ctx.room);
+    }),
+  );
 
-  socket.on('disconnect', () => {
-    const ctx = context(socket);
-    if (!ctx) return;
-    rooms.markDisconnected(ctx.room, ctx.index);
-    pushState(ctx.room);
-  });
+  socket.on(
+    'leaveRoom',
+    safe((cb) => {
+      if (typeof cb !== 'function') return;
+      const ctx = context(socket);
+      if (!ctx) return cb({ ok: true });
+      const code = ctx.room.code;
+      rooms.leaveRoom(ctx.room, ctx.index);
+      socket.data = {};
+      cb({ ok: true });
+      const remaining = rooms.getRoom(code);
+      if (remaining) pushState(remaining);
+    }),
+  );
+
+  socket.on(
+    'disconnect',
+    safe(() => {
+      const ctx = context(socket);
+      if (!ctx) return;
+      rooms.markDisconnected(ctx.room, ctx.index, socket.id);
+      pushState(ctx.room);
+    }),
+  );
 });
 
 const port = Number(process.env.PORT ?? 3001);
