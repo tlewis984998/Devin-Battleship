@@ -58,8 +58,25 @@ Run it 2-3 times — it is randomized. Never point it at :3001 if a dev server i
 - New dependencies: prefer versions published ≥7 days ago; the vitest pin (5.0.1) is
   deliberate for that reason.
 
-## Git
+## Git workflow
 
-- Remote: `https://github.com/tlewis984998/Devin-Battleship.git`, branch `main`.
-- Credentials come from `gh` (`gh auth setup-git` is configured). Do not push without
-  being asked.
+**Never commit directly to `main`.** Every change goes through a branch and a pull
+request so the owner can review before it lands.
+
+1. Start from up-to-date `main`: `git checkout main && git pull`.
+2. Branch: `git checkout -b <type>/<short-description>` where type is `feat`, `fix`,
+   `docs`, `chore`, or `refactor` (e.g. `fix/leave-room-timer`).
+3. Commit on the branch with a message that explains *why*.
+4. Push the branch and open a PR against `main` with `gh pr create --fill` (or with
+   `--title/--body`). The body should cover what changed, why, and how it was
+   verified (which of the commands above were run). Add `docs/changelog.md` and
+   `docs/known-issues.md` updates in the same PR when they apply.
+5. Do not merge the PR yourself; the owner reviews and merges. Squash-merge is
+   preferred so `main` stays one commit per change.
+6. After merge: `git checkout main && git pull && git branch -d <branch>`.
+
+- Remote: `https://github.com/tlewis984998/Devin-Battleship.git`, default branch
+  `main`.
+- Credentials come from `gh` (`gh auth setup-git` is configured).
+- History before 2026-09-28 (`aa4e782`..`f5f1f18`) was committed straight to `main`;
+  everything after must follow the flow above.
