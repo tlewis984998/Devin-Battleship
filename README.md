@@ -57,6 +57,7 @@ The server serves the built client and the Socket.IO endpoint from one port.
 - [`docs/protocol.md`](docs/protocol.md) — socket events and the `RoomView` contract
 - [`docs/ai-opponent.md`](docs/ai-opponent.md) — how the computer player works
 - [`docs/known-issues.md`](docs/known-issues.md) — open bugs and hardening backlog
+- [`docs/changelog.md`](docs/changelog.md) — what changed and why, including bug root causes
 - [`AGENTS.md`](AGENTS.md) — setup quirks, verification commands, and conventions for contributors and coding agents
 
 ## Project layout

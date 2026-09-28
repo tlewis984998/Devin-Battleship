@@ -20,7 +20,8 @@ next step for real deployment.
 
 ## Fixed
 
-Resolved on 2026-09-28:
+Resolved on 2026-09-28 — full root-cause / fix / verification write-up in
+[`changelog.md`](changelog.md):
 
 - Malformed socket payloads no longer crash the server — every handler validates its
   payload (`validate.ts`) and is wrapped by `safe()`, which acks `{ok:false}` on a
