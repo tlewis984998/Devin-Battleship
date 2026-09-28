@@ -1,5 +1,14 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { BOARD_SIZE, Coord, Phase, RoomView, ShipPlacement } from '@battleship/shared';
+import {
+  BOARD_SIZE,
+  Coord,
+  GameMode,
+  Phase,
+  RoomView,
+  SHIPS,
+  ShipPlacement,
+  randomPlacements,
+} from '@battleship/shared';
 import {
   Board,
   FireResult,
@@ -12,6 +21,7 @@ import {
   sunkNames,
   validatePlacement,
 } from './game/board';
+import { AiState, chooseShot, createAiState, recordResult } from './game/ai';
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no I, L, O, 0, 1
 const CODE_LENGTH = 4;
@@ -21,6 +31,7 @@ export interface Player {
   token: string;
   socketId: string | null;
   index: 0 | 1;
+  isBot: boolean;
 }
 
 export class Room {
@@ -31,6 +42,8 @@ export class Room {
   winner: 0 | 1 | null = null;
   rematchVotes = new Set<number>();
   cleanupTimer: NodeJS.Timeout | null = null;
+  ai: AiState | null = null;
+  botTimer: NodeJS.Timeout | null = null;
 
   constructor(public code: string) {}
 
@@ -41,12 +54,14 @@ export class Room {
   viewFor(index: 0 | 1): RoomView {
     const mine = this.boards[index];
     const foe = this.boards[1 - index];
+    const opponent = this.player(1 - index);
     const finished = this.phase === 'finished';
     return {
       roomCode: this.code,
       phase: this.phase,
       playerIndex: index,
-      opponentConnected: Boolean(this.player(1 - index)?.socketId),
+      opponentConnected: Boolean(opponent && (opponent.socketId || opponent.isBot)),
+      opponentIsAi: Boolean(opponent?.isBot),
       youPlaced: mine !== null,
       opponentPlaced: foe !== null,
       yourBoard: mine ? ownView(mine) : emptyView(),
@@ -71,23 +86,37 @@ function genCode(): string {
   return code;
 }
 
-function addPlayer(room: Room, index: 0 | 1): Player {
-  const player: Player = { token: randomUUID(), socketId: null, index };
+function addPlayer(room: Room, index: 0 | 1, isBot = false): Player {
+  const player: Player = { token: randomUUID(), socketId: null, index, isBot };
   room.players.push(player);
-  tokens.set(player.token, { code: room.code, index });
+  if (!isBot) tokens.set(player.token, { code: room.code, index });
   return player;
+}
+
+/** Bot fleets: keep drawing until a full legal layout comes out. */
+function botBoard(): Board {
+  let placements = randomPlacements();
+  while (placements.length !== SHIPS.length) placements = randomPlacements();
+  return createBoard(placements);
 }
 
 export function getRoom(code: string): Room | undefined {
   return rooms.get(code);
 }
 
-export function createRoom(): { room: Room; player: Player } {
+export function createRoom(mode: GameMode = 'human'): { room: Room; player: Player } {
   let code = genCode();
   while (rooms.has(code)) code = genCode();
   const room = new Room(code);
   rooms.set(code, room);
-  return { room, player: addPlayer(room, 0) };
+  const player = addPlayer(room, 0);
+  if (mode === 'ai') {
+    addPlayer(room, 1, true);
+    room.ai = createAiState();
+    room.phase = 'placing';
+    room.boards[1] = botBoard();
+  }
+  return { room, player };
 }
 
 export function joinRoom(code: string): { room: Room; player: Player } | { error: string } {
@@ -120,7 +149,7 @@ export function touch(room: Room): void {
 export function markDisconnected(room: Room, index: number): void {
   const player = room.player(index);
   if (player) player.socketId = null;
-  if (room.players.every((p) => p.socketId === null)) {
+  if (room.players.filter((p) => !p.isBot).every((p) => p.socketId === null)) {
     touch(room);
     room.cleanupTimer = setTimeout(() => destroy(room.code), EMPTY_ROOM_TTL_MS);
   }
@@ -129,6 +158,7 @@ export function markDisconnected(room: Room, index: number): void {
 function destroy(code: string): void {
   const room = rooms.get(code);
   if (!room) return;
+  if (room.botTimer) clearTimeout(room.botTimer);
   for (const p of room.players) tokens.delete(p.token);
   rooms.delete(code);
 }
@@ -176,11 +206,29 @@ export function fire(
 export function rematch(room: Room, index: 0 | 1): string | null {
   if (room.phase !== 'finished') return 'game not finished';
   room.rematchVotes.add(index);
+  const bot = room.players.find((p) => p.isBot);
+  if (bot) room.rematchVotes.add(bot.index);
   if (room.rematchVotes.size === 2) {
     room.boards = [null, null];
     room.phase = 'placing';
     room.winner = null;
     room.rematchVotes.clear();
+    if (room.ai) room.ai = createAiState();
+    if (bot) room.boards[bot.index] = botBoard();
   }
   return null;
+}
+
+export function botShouldAct(room: Room): boolean {
+  return room.ai !== null && room.phase === 'battle' && room.turn === 1;
+}
+
+export function botFire(room: Room): void {
+  if (!room.ai || !room.boards[0]) return;
+  const view = foeView(room.boards[0]);
+  const c = chooseShot(view, room.ai);
+  const res = fire(room, 1, c);
+  if (!('error' in res)) {
+    recordResult(room.ai, c, res.result, foeView(room.boards[0]));
+  }
 }

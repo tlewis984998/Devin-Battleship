@@ -304,3 +304,24 @@ input:focus {
   align-items: center;
   justify-content: center;
 }
+
+.segmented {
+  display: flex;
+  border: 1px solid #2c4560;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.segmented .seg {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: #0f1d2e;
+  color: #8aa2bf;
+}
+
+.segmented .seg.active {
+  background: #1e3a5f;
+  color: #d7e3f1;
+}

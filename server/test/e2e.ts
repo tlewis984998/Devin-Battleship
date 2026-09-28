@@ -47,6 +47,7 @@ async function main() {
   const created = await emit<{ ok: boolean; token?: string; view?: RoomView; error?: string }>(
     a,
     'createRoom',
+    { mode: 'human' },
   );
   assert(created.ok && created.view, `createRoom: ${created.error}`);
   const code = created.view!.roomCode;
@@ -83,6 +84,7 @@ async function main() {
       a.close();
       b.close();
       console.log('E2E PASS');
+      await aiGame();
       return;
     }
     const me = va?.yourTurn ? a : vb?.yourTurn ? b : null;
@@ -104,6 +106,68 @@ async function main() {
     }
   }
   throw new Error('game did not finish in time');
+}
+
+/** Second scenario: one human client plays a full game against the AI, then rematches. */
+async function aiGame() {
+  const a = await connect();
+  const views = { v: null as RoomView | null };
+  a.on('state', (v) => (views.v = v));
+
+  const created = await emit<{ ok: boolean; token?: string; view?: RoomView; error?: string }>(
+    a,
+    'createRoom',
+    { mode: 'ai' },
+  );
+  assert(created.ok && created.view, `ai createRoom: ${created.error}`);
+  const v0 = created.view!;
+  assert(v0.phase === 'placing', `ai room phase: ${v0.phase}`);
+  assert(v0.opponentIsAi === true, 'opponent should be AI');
+  assert(v0.opponentPlaced === true, 'AI fleet should be pre-placed');
+  console.log('ai room created, bot fleet placed');
+
+  const p = await emit<{ ok: boolean; error?: string }>(a, 'placeShips', {
+    ships: randomPlacements(),
+  });
+  assert(p.ok, `ai placeShips: ${p.error}`);
+
+  const deadline = Date.now() + 60_000;
+  let shots = 0;
+  while (Date.now() < deadline) {
+    const v = views.v;
+    if (v?.phase === 'finished') {
+      assert(v.winner !== null, 'ai game has a winner');
+      console.log(
+        `ai game over after ${shots} shots — winner: ${v.winner === 'you' ? 'human' : 'computer'}`,
+      );
+      const r = await emit<{ ok: boolean; error?: string }>(a, 'rematch');
+      assert(r.ok, `rematch: ${r.error}`);
+      const rematchDeadline = Date.now() + 5000;
+      while (views.v?.phase !== 'placing' && Date.now() < rematchDeadline) {
+        await new Promise((res) => setTimeout(res, 20));
+      }
+      assert(views.v?.phase === 'placing', `rematch phase: ${views.v?.phase}`);
+      assert(views.v.youPlaced === false, 'rematch clears placed flag');
+      a.close();
+      console.log('AI E2E PASS');
+      return;
+    }
+    if (v?.yourTurn) {
+      const options: { row: number; col: number }[] = [];
+      v.opponentBoard.forEach((row: CellView[], r: number) =>
+        row.forEach((cell: CellView, c: number) => {
+          if (cell === 'water') options.push({ row: r, col: c });
+        }),
+      );
+      const target = options[Math.floor(Math.random() * options.length)];
+      const res = await emit<{ ok: boolean; error?: string }>(a, 'fire', target);
+      assert(res.ok, `ai fire ${JSON.stringify(target)}: ${res.error}`);
+      shots++;
+    } else {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  throw new Error('ai game did not finish in time');
 }
 
 main().catch((err) => {

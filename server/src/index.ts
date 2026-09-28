@@ -31,6 +31,17 @@ if (fs.existsSync(clientDist)) {
   app.use((_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
 
+function scheduleBot(room: Room): void {
+  if (!rooms.botShouldAct(room)) return;
+  if (room.botTimer) clearTimeout(room.botTimer);
+  room.botTimer = setTimeout(() => {
+    room.botTimer = null;
+    rooms.botFire(room);
+    pushState(room);
+    scheduleBot(room);
+  }, 700);
+}
+
 function pushState(room: Room): void {
   for (const p of room.players) {
     if (p.socketId) io.to(p.socketId).emit('state', room.viewFor(p.index));
@@ -53,8 +64,8 @@ function context(socket: AppSocket): { room: Room; index: 0 | 1 } | null {
 }
 
 io.on('connection', (socket: AppSocket) => {
-  socket.on('createRoom', (cb) => {
-    const { room, player } = rooms.createRoom();
+  socket.on('createRoom', ({ mode }, cb) => {
+    const { room, player } = rooms.createRoom(mode === 'ai' ? 'ai' : 'human');
     attach(socket, room, player);
     cb({ ok: true, token: player.token, view: room.viewFor(0) });
   });
@@ -73,6 +84,7 @@ io.on('connection', (socket: AppSocket) => {
     attach(socket, res.room, res.player);
     cb({ ok: true, view: res.room.viewFor(res.player.index) });
     pushState(res.room);
+    scheduleBot(res.room);
   });
 
   socket.on('placeShips', ({ ships }, cb) => {
@@ -82,6 +94,7 @@ io.on('connection', (socket: AppSocket) => {
     if (error) return cb({ ok: false, error });
     cb({ ok: true });
     pushState(ctx.room);
+    scheduleBot(ctx.room);
   });
 
   socket.on('fire', (coord, cb) => {
@@ -91,6 +104,7 @@ io.on('connection', (socket: AppSocket) => {
     if ('error' in res) return cb({ ok: false, error: res.error });
     pushState(ctx.room);
     cb({ ok: true });
+    scheduleBot(ctx.room);
   });
 
   socket.on('rematch', (cb) => {
@@ -100,6 +114,7 @@ io.on('connection', (socket: AppSocket) => {
     if (error) return cb({ ok: false, error });
     cb({ ok: true });
     pushState(ctx.room);
+    scheduleBot(ctx.room);
   });
 
   socket.on('disconnect', () => {

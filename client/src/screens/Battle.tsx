@@ -27,6 +27,7 @@ export default function Battle({ view }: { view: RoomView }) {
   const canFire = !finished && view.yourTurn;
   const voted = view.rematchRequestedBy.includes(view.playerIndex);
   const opponentVoted = view.rematchRequestedBy.some((i) => i !== view.playerIndex);
+  const opponent = view.opponentIsAi ? 'Computer' : 'Opponent';
 
   const fire = (row: number, col: number) => {
     if (!canFire || view.opponentBoard[row][col] !== 'water') return;
@@ -45,10 +46,10 @@ export default function Battle({ view }: { view: RoomView }) {
           </h2>
         ) : (
           <h2 className={view.yourTurn ? 'win' : ''}>
-            {view.yourTurn ? 'Your turn — fire!' : "Opponent's turn…"}
+            {view.yourTurn ? 'Your turn — fire!' : `${opponent}'s turn…`}
           </h2>
         )}
-        {!view.opponentConnected && (
+        {!view.opponentConnected && !view.opponentIsAi && (
           <span className="warn">Opponent disconnected — they can rejoin anytime.</span>
         )}
       </div>
@@ -86,7 +87,7 @@ export default function Battle({ view }: { view: RoomView }) {
           >
             {voted ? 'Rematch requested…' : 'Rematch'}
           </button>
-          {opponentVoted && !voted && <span className="muted">Opponent wants a rematch.</span>}
+          {opponentVoted && !voted && <span className="muted">{opponent} wants a rematch.</span>}
         </div>
       )}
       {error && <p className="error">{error}</p>}

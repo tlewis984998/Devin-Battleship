@@ -65,6 +65,8 @@ export function randomPlacements(rand: () => number = Math.random): ShipPlacemen
 
 export type Phase = 'waiting' | 'placing' | 'battle' | 'finished';
 
+export type GameMode = 'human' | 'ai';
+
 /** What a player may see in a cell. */
 export type CellView =
   | 'water' // unknown (opponent board) or empty own water
@@ -78,6 +80,7 @@ export interface RoomView {
   phase: Phase;
   playerIndex: 0 | 1;
   opponentConnected: boolean;
+  opponentIsAi: boolean;
   youPlaced: boolean;
   opponentPlaced: boolean;
   yourBoard: CellView[][];
@@ -97,7 +100,7 @@ export type JoinResult = ({ ok: true; token: string; view: RoomView } | { ok: fa
 export type ResumeResult = ({ ok: true; view: RoomView } | { ok: false; error: string });
 
 export interface ClientToServer {
-  createRoom: (cb: (r: JoinResult) => void) => void;
+  createRoom: (p: { mode: GameMode }, cb: (r: JoinResult) => void) => void;
   joinRoom: (p: { roomCode: string }, cb: (r: JoinResult) => void) => void;
   resume: (p: { token: string }, cb: (r: ResumeResult) => void) => void;
   placeShips: (p: { ships: ShipPlacement[] }, cb: (r: SimpleResult) => void) => void;
