@@ -28,8 +28,12 @@ type AppSocket = Socket<ClientToServer, ServerToClient, Record<string, never>, S
 
 const app = express();
 const http = createServer(app);
+const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const io = new Server<ClientToServer, ServerToClient, Record<string, never>, SocketData>(http, {
-  cors: { origin: true },
+  cors: { origin: corsOrigins },
 });
 
 app.get('/healthz', (_req, res) => {
@@ -107,7 +111,11 @@ io.on('connection', (socket: AppSocket) => {
     safe((p, cb) => {
       if (typeof cb !== 'function') return;
       if (!isRecord(p) || !isRoomCode(p.roomCode)) return cb(invalid);
-      const res = rooms.joinRoom(p.roomCode.toUpperCase().trim());
+      const code = p.roomCode.toUpperCase().trim();
+      if (socket.data.code === code) {
+        return cb({ ok: false, error: 'you are already in this room' });
+      }
+      const res = rooms.joinRoom(code);
       if ('error' in res) return cb({ ok: false, error: res.error });
       attach(socket, res.room, res.player);
       cb({ ok: true, token: res.player.token, view: res.room.viewFor(res.player.index) });

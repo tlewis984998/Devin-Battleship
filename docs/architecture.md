@@ -94,6 +94,8 @@ createRoom
 - Every handler is wrapped in `safe()` (a throw acks `{ok:false}` instead of
   propagating) and validates its payload with the type guards in `validate.ts`;
   `uncaughtException`/`unhandledRejection` are logged rather than fatal.
+- Socket.IO CORS is an allow-list built from `CORS_ORIGIN` (comma-separated);
+  it defaults to the Vite dev origins since production serves the client same-origin.
 - `leaveRoom` frees the seat: a `waiting` room, an AI room, or an emptied room is
   destroyed outright; otherwise the game ends with the leaver's opponent as winner
   and `opponentLeft` set on their `RoomView`.

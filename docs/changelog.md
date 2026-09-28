@@ -3,6 +3,14 @@
 Notable changes, newest first. Bug-fix entries describe the root cause, the fix, and
 how it was verified so future readers can judge whether a regression is plausible.
 
+## 2026-09-28 — Known-issues cleanup (`fix/known-issues-cleanup`)
+
+- `cors: { origin: true }` reflected any origin → allow-list from `CORS_ORIGIN`,
+  defaulting to the Vite dev origins (production is same-origin).
+- A creator could join their own room as player 2 → `joinRoom` rejects when the
+  socket is already seated in that room.
+- StrictMode double-invoked the resume effect → guarded by a ref; runs once.
+
 ## 2026-09-28 — Hardening and lifecycle fixes (`37966b1`)
 
 Follow-up to the bug review recorded in `known-issues.md`. Fixed items 1–4 and 7.

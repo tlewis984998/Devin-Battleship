@@ -221,6 +221,11 @@ async function leaveGame() {
   const created = await emit<Ack>(a, 'createRoom', { mode: 'human' });
   assert(created.ok && created.view, `leave createRoom: ${created.error}`);
   const code = created.view!.roomCode;
+  const selfJoin = await emit<Ack>(a, 'joinRoom', { roomCode: code });
+  assert(
+    selfJoin.ok === false && selfJoin.error === 'you are already in this room',
+    `self-join should be rejected, got ${JSON.stringify(selfJoin)}`,
+  );
   const joined = await emit<Ack>(b, 'joinRoom', { roomCode: code });
   assert(joined.ok, `leave joinRoom: ${joined.error}`);
   for (const s of [a, b]) {
