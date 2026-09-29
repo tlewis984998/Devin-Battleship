@@ -7,12 +7,20 @@ Longer-form docs live in `docs/` — start with `docs/architecture.md`.
 ## Setup
 
 ```bash
-npm install --legacy-peer-deps
+npm install
 ```
 
-Plain `npm install` crashes npm's arborist ("Cannot read properties of null (reading
-'edgesOut')") while resolving vitest 5's optional peer deps. Always pass
-`--legacy-peer-deps`. Node 22+.
+`.npmrc` sets `legacy-peer-deps=true`; without it npm's arborist crashes ("Cannot read
+properties of null (reading 'edgesOut')") while resolving vitest 5's optional peer
+deps. Do not delete that file. Node 22+ (`engines` in the root package.json).
+
+## Deploy
+
+Production runs on Railway from the root `Dockerfile` (multi-stage: build the client,
+then a runtime image with `npm ci --omit=dev`). `tsx` is a runtime dependency because
+the server runs TypeScript directly. Anything the server needs at runtime must be in
+`dependencies`, not `devDependencies`, or the production image will fail to start.
+Railway redeploys on every push to `main`; see README "Deploy to Railway".
 
 ## Run
 
