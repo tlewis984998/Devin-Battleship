@@ -128,7 +128,8 @@ export function joinRoom(code: string): { room: Room; player: Player } | { error
   const room = rooms.get(code);
   if (!room) return { error: 'room not found' };
   if (room.players.length >= 2) return { error: 'room is full' };
-  const player = addPlayer(room, 1);
+  if (room.phase !== 'waiting') return { error: 'game already started' };
+  const player = addPlayer(room, room.player(0) ? 1 : 0);
   room.phase = 'placing';
   return { room, player };
 }

@@ -3,6 +3,33 @@
 Notable changes, newest first. Bug-fix entries describe the root cause, the fix, and
 how it was verified so future readers can judge whether a regression is plausible.
 
+## 2026-10-05 — Seat lifecycle fixes (`fix/session-and-join-bugs`)
+
+Found in a full code review and reproduced against a live server with a Socket.IO
+client probe.
+
+- **Late join broke the room (high).** `joinRoom` only checked the player count, so
+  once someone left, a stranger could take the free seat of a finished/in-progress
+  game: phase reset to `placing` with both old boards kept (permanently stuck), and if
+  the creator had left, two players shared index 1. Now rejects with
+  `game already started` unless the room is `waiting`.
+- **Reconnect lost the session (high).** The client resumed only on page load; after
+  Socket.IO's automatic reconnect every action acked `not in a room` and state pushes
+  stopped. The client now re-sends `resume` on every reconnect.
+- **One socket could hold several seats (medium).** `attach` overwrote `socket.data`
+  without releasing the previous seat, so earlier rooms kept a dead `socketId`, never
+  got a cleanup timer (unbounded leak via repeated `createRoom`) and showed a phantom
+  connected opponent. `attach` now marks the previous seat disconnected first.
+- **Leave raced in-flight state (medium).** A `state` push arriving after "Leave game"
+  restored the old room's screen. The client now ignores state for the room it left,
+  drops `resume` acks for a session it no longer holds, and when leaving while offline
+  queues `resume` before `leaveRoom` so the seat is still forfeited on reconnect.
+
+Verified by: new `joinRoom` unit test; e2e `REGRESSIONS` scenario (late join after
+either player leaves, second `createRoom` releases the first seat, resume after a
+forced transport drop); browser check that firing still works after the
+connection is dropped mid-game.
+
 ## 2026-09-28 — SuperShot (`feat/supershot`)
 
 - New once-per-game weapon: `superShot {row,col}` fires a plus pattern — centre plus

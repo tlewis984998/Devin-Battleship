@@ -10,9 +10,33 @@ until fixed; remove entries as they are resolved.
 then invalid and they are returned to Home. A Redis-backed room store would be the
 next step for real deployment.
 
+## Open (low severity)
+
+Found in the 2026-10-05 review; not yet fixed.
+
+- Double-clicking an enemy cell sends two `fire`s; the second acks `not your turn`
+  and flashes an error after a valid move.
+- `fire`/`superShot`/`placeShips`/`rematch` emits have no ack timeout, so they fail
+  silently while disconnected.
+- A resume that times out on page load (e.g. cold start) leaves the user on Home with
+  a still-valid token and no retry until reload.
+- Human-vs-human games have no turn timer or forfeit; a permanently absent opponent
+  stalls the game while the other player stays connected.
+- The Socket.IO `cors` allow-list only applies to HTTP long-polling; websocket upgrades
+  from any origin are accepted (low impact: no cookies or auth).
+- `uncaughtException` is logged and swallowed, so a throw outside `safe()` can leave
+  a room half-updated.
+
 ## Fixed
 
 Full root-cause / fix / verification write-ups live in [`changelog.md`](changelog.md).
+
+Resolved on 2026-10-05 (PR: fix/session-and-join-bugs):
+
+- Joining a room whose game already started is rejected (`game already started`).
+- The client re-sends `resume` after Socket.IO auto-reconnects.
+- A socket taking a new seat releases its previous one.
+- `state` pushes for a room you just left are ignored.
 
 Resolved on 2026-09-28 (PR: fix/known-issues-cleanup):
 

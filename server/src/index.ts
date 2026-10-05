@@ -65,6 +65,11 @@ function pushState(room: Room): void {
 }
 
 function attach(socket: AppSocket, room: Room, player: rooms.Player): void {
+  const prev = context(socket);
+  if (prev && (prev.room !== room || prev.index !== player.index)) {
+    rooms.markDisconnected(prev.room, prev.index, socket.id);
+    pushState(prev.room);
+  }
   socket.data.code = room.code;
   socket.data.index = player.index;
   player.socketId = socket.id;

@@ -7,6 +7,7 @@ import {
   createRoom,
   fire,
   joinRoom,
+  leaveRoom,
   markDisconnected,
   placeShips,
   rematch,
@@ -136,5 +137,17 @@ describe('botFire SuperShot', () => {
     botFire(room);
     expect(room.superShotUsed[1]).toBe(true);
     expect(room.boards[0]!.cells[4][1].shot).toBe(true);
+  });
+});
+
+describe('joinRoom', () => {
+  it('rejects a stranger once the game has started, even after a seat frees up', () => {
+    for (const leaver of [0, 1] as const) {
+      const room = setupBattle();
+      leaveRoom(room, leaver);
+      expect(joinRoom(room.code)).toEqual({ error: 'game already started' });
+      expect(room.players).toHaveLength(1);
+      expect(room.phase).toBe('finished');
+    }
   });
 });
