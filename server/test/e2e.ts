@@ -277,6 +277,56 @@ async function leaveGame() {
   b.close();
   c.close();
   console.log('LEAVE PASS');
+  await regressions();
+}
+
+/** Fifth scenario: seat lifecycle regressions (late joins, multi-room sockets, reconnects). */
+async function regressions() {
+  for (const leaverIsCreator of [false, true]) {
+    const a = await connect();
+    const b = await connect();
+    const c = await connect();
+    const created = await emit<Ack>(a, 'createRoom', { mode: 'human' });
+    const code = created.view!.roomCode;
+    await emit<Ack>(b, 'joinRoom', { roomCode: code });
+    for (const s of [a, b]) await emit<Ack>(s, 'placeShips', { ships: randomPlacements() });
+    await emit<Ack>(leaverIsCreator ? a : b, 'leaveRoom');
+    const late = await emit<Ack>(c, 'joinRoom', { roomCode: code });
+    assert(
+      late.ok === false && late.error === 'game already started',
+      `late join should be rejected, got ${JSON.stringify(late)}`,
+    );
+    [a, b, c].forEach((s) => s.close());
+  }
+
+  const a = await connect();
+  const b = await connect();
+  const first = await emit<Ack>(a, 'createRoom', { mode: 'human' });
+  await emit<Ack>(a, 'createRoom', { mode: 'human' });
+  const j = await emit<Ack>(b, 'joinRoom', { roomCode: first.view!.roomCode });
+  assert(j.ok && j.view, `join first room: ${j.error}`);
+  assert(j.view!.opponentConnected === false, 'creating a second room releases the first seat');
+  a.close();
+  b.close();
+
+  const d = await connect();
+  const views = { v: null as RoomView | null };
+  d.on('state', (v) => (views.v = v));
+  const ai = await emit<Ack>(d, 'createRoom', { mode: 'ai' });
+  await emit<Ack>(d, 'placeShips', { ships: randomPlacements() });
+  d.io.engine.close();
+  await new Promise<void>((r) => d.once('connect', () => r()));
+  const stale = await emit<Ack>(d, 'rematch');
+  assert(stale.ok === false && stale.error === 'not in a room', 'reconnected socket is unseated');
+  const resumed = await emit<Ack>(d, 'resume', { token: ai.token });
+  assert(resumed.ok && resumed.view?.phase === 'battle', `resume after reconnect: ${resumed.error}`);
+  const deadline = Date.now() + 15_000;
+  while (!views.v?.yourTurn && Date.now() < deadline) await sleep(50);
+  assert(views.v?.yourTurn, 'state pushes resume after reconnect');
+  const shot = await emit<Ack>(d, 'fire', { row: 0, col: 0 });
+  assert(shot.ok, `fire after resume: ${shot.error}`);
+  d.close();
+  console.log('REGRESSIONS PASS');
 }
 
 main().catch((err) => {

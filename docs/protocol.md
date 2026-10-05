@@ -16,7 +16,7 @@ Every event takes a payload and an acknowledgement callback. Acks are one of:
 | Event | Payload | Success ack | Errors |
 | --- | --- | --- | --- |
 | `createRoom` | `{ mode: 'human' \| 'ai' }` | `{ token, view }` | — |
-| `joinRoom` | `{ roomCode }` (case-insensitive) | `{ token, view }` | `room not found`, `room is full` |
+| `joinRoom` | `{ roomCode }` (case-insensitive) | `{ token, view }` | `room not found`, `room is full`, `game already started` |
 | `resume` | `{ token }` | `{ view }` | `session not found` |
 | `placeShips` | `{ ships: ShipPlacement[] }` | `{}` | `not in placement phase`, `ships already placed`, validation messages |
 | `fire` | `{ row, col }` | `{}` | `not in battle phase`, `not your turn`, `target out of bounds`, `cell already fired on` |
@@ -27,7 +27,10 @@ Every event takes a payload and an acknowledgement callback. Acks are one of:
 Payloads are validated server-side; malformed input acks `{ok:false, error:'invalid request'}`.
 
 `token` must be persisted by the client (`localStorage['battleship-token']`) and sent
-in `resume` on the next page load to reclaim the seat.
+in `resume` on the next page load to reclaim the seat. Socket.IO's automatic reconnect
+creates a new socket the server has never seen, so the client also re-sends `resume`
+on every reconnect. Creating, joining or resuming from a socket that already holds a
+different seat releases that seat first.
 
 ## Server → client
 
