@@ -33,7 +33,7 @@ export default function App() {
       const token = localStorage.getItem(TOKEN_KEY);
       if (!token) return;
       socket.timeout(5000).emit('resume', { token }, (err, r) => {
-        if (err) return;
+        if (err || localStorage.getItem(TOKEN_KEY) !== token) return;
         if (r.ok) return setView(r.view);
         localStorage.removeItem(TOKEN_KEY);
         setView(null);
@@ -54,6 +54,7 @@ export default function App() {
     if (!token) return;
     socket.timeout(5000).emit('resume', { token }, (err, r) => {
       setResuming(false);
+      if (localStorage.getItem(TOKEN_KEY) !== token) return;
       if (err) {
         setNotice('Could not reach the server. Please try again.');
         return;
@@ -65,6 +66,9 @@ export default function App() {
 
   const leave = () => {
     leftRoom.current = view?.roomCode ?? null;
+    const token = localStorage.getItem(TOKEN_KEY);
+    // Offline emits are buffered and flushed on reconnect, before the seat is reclaimed.
+    if (!socket.connected && token) socket.emit('resume', { token }, () => {});
     socket.emit('leaveRoom', () => {});
     localStorage.removeItem(TOKEN_KEY);
     setView(null);

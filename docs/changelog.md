@@ -21,7 +21,9 @@ client probe.
   got a cleanup timer (unbounded leak via repeated `createRoom`) and showed a phantom
   connected opponent. `attach` now marks the previous seat disconnected first.
 - **Leave raced in-flight state (medium).** A `state` push arriving after "Leave game"
-  restored the old room's screen. The client now ignores state for the room it left.
+  restored the old room's screen. The client now ignores state for the room it left,
+  drops `resume` acks for a session it no longer holds, and when leaving while offline
+  queues `resume` before `leaveRoom` so the seat is still forfeited on reconnect.
 
 Verified by: new `joinRoom` unit test; e2e `REGRESSIONS` scenario (late join after
 either player leaves, second `createRoom` releases the first seat, resume after a
